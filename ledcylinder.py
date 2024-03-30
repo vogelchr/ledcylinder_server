@@ -102,6 +102,8 @@ def main():
                      help='Switch pages after sec seconds [def:%(default).1f]')
     grp.add_argument('-f', '--fade-time', metavar='sec', default=1.0,
                      help='Switch pages after sec seconds [def:%(default).1f]')
+    grp.add_argument('-l', '--limit-brightness', type=int, choices=range(1, 256),
+                     default=255, help='Limit brightness of individual pages [def:%(default)d]')
 
     parser.add_argument('layers', type=Path, nargs='+')
 
@@ -123,7 +125,7 @@ def main():
     info('Loading layers.')
     layers = list()
     for fn in args.layers:
-        layer = LED_Layer.from_file(fn)
+        layer = LED_Layer.from_file(fn, args.limit_brightness)
         assert layer.width == args.width
         assert layer.height == args.height
         layers.append(layer)
