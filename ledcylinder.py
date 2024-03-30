@@ -117,6 +117,9 @@ def main():
     logging.basicConfig(level=log_lvl, format='%(asctime)s %(message)s')
     loop = asyncio.new_event_loop()
 
+    if len(args.layers) == 1 and args.layers[0].is_dir() :
+        args.layers = sorted(args.layers[0].glob('*.png'))
+
     info('Loading layers.')
     layers = list()
     for fn in args.layers:
