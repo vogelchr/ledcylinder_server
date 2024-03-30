@@ -10,7 +10,6 @@ from typing import List
 import PIL.Image
 import numpy as np
 
-from led_hw_sim import HW_PyGame
 from led_layer import LED_Layer
 
 
@@ -28,7 +27,7 @@ def _rotate(src: PIL.Image.Image, xoffs: int):
     return ret
 
 
-async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw: HW_PyGame):
+async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
     x_offset = 0
 
     layer_ix = 0
@@ -47,7 +46,7 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw: HW_PyG
             fade = dt_remain / args.fade_time
 
             ndarr_combine = np.clip(
-                fade * ndarr_a + (1.0 - fade) * ndarr_b, 0, 255).astype(np.uint8)
+                np.power(fade, 3) * ndarr_a + np.power(1.0 - fade, 3) * ndarr_b, 0, 255).astype(np.uint8)
             img = PIL.Image.fromarray(ndarr_combine, 'RGB')
         else:
             layers[layer_ix].tick()
@@ -56,10 +55,10 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw: HW_PyG
         hw.update(_rotate(img, x_offset))
 
         x_offset -= 1
-        if x_offset >= hw.width:
+        if x_offset >= args.width:
             x_offset = 0
         if x_offset < 0:
-            x_offset = hw.width - 1
+            x_offset = args.width - 1
 
         dt_remain -= dt_secs
         if dt_remain < 0:
@@ -72,7 +71,6 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw: HW_PyG
                     ix_b = 0
                 layer_ix = (layer_ix, ix_b)
                 dt_remain = args.fade_time
-            print('Switching to layer', layer_ix)
         await asyncio.sleep(dt_secs)
 
 
@@ -127,14 +125,20 @@ def main():
         assert layer.height == args.height
         layers.append(layer)
 
-    info('Starting pygame simulator hardware...')
-    hw = HW_PyGame(loop, args.width, args.height)
-
+    if args.simulation:
+        info('Starting pygame simulator hardware...')
+        from led_hw_sim import HW_PyGame
+        hw = HW_PyGame(loop, args.width, args.height)
+    else:
+        info('Running with real USB hardware...')
+        from led_hw_usb import HW_USB
+        hw = HW_USB()
     try:
         info('Starting mainloop..')
         loop.run_until_complete(mainloop(args, layers, hw))
     except KeyboardInterrupt:
-        hw.stop()
+        if args.simulation:
+            hw.stop()
 
 
 if __name__ == '__main__':
