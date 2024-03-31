@@ -120,12 +120,14 @@ def main():
     loop = asyncio.new_event_loop()
 
     if len(args.layers) == 1 and args.layers[0].is_dir():
-        args.layers = sorted(args.layers[0].glob('*.png'))
+        args.layers = sorted(args.layers[0].glob('*'))
 
     info('Loading layers.')
     layers = list()
     for fn in args.layers:
         layer = LED_Layer.from_file(fn, args.limit_brightness)
+        if layer is None :
+            continue
         assert layer.width == args.width
         assert layer.height == args.height
         layers.append(layer)

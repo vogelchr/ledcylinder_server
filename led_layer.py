@@ -13,8 +13,10 @@ class LED_Layer(ABC):
     def from_file(fn: Path, limit_brightness):
         if '.png' in fn.suffixes or '.jpg' in fn.suffixes:
             return LED_Image.from_file(fn, limit_brightness)
-
-        return RuntimeError('I do not understand what kind of layer you want to instantiate.')
+        if '.ani' in fn.suffixes:
+            return LED_Anim.from_file(fn, limit_brightness)
+        warning(f'Unknown extension for {fn}, ignoring!')
+        return None
 
     @abstractmethod
     def tick(self):
