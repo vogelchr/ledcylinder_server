@@ -20,7 +20,7 @@ class LED_Layer(ABC):
         return None
 
     @abstractmethod
-    def tick(self):
+    def tick(self, dt: float):
         pass
 
     @abstractmethod
@@ -53,19 +53,21 @@ class LED_Image(LED_Layer):
     def get(self):
         return self.img
 
-    def tick(self):
+    def tick(self, dt: float):
         pass
 
 
 class LED_Anim(LED_Layer):
     img_arr: List[PIL.Image]
     img_ix: int
+    frame_dt: float
 
     def __init__(self, width: int, height: int, img_arr: List[PIL.Image]):
         self.width = width
         self.height = height
         self.img_arr = img_arr
         self.img_ix = 0
+        self.frame_dt = 0.0
 
     @classmethod
     def from_file(cls, fn: Path, limit_brightness: int):
@@ -103,10 +105,13 @@ class LED_Anim(LED_Layer):
         info('Animation with {len(img_arr)} frames of size {shape[1]} x {shape[0]}')
         return cls(shape[1], shape[0], img_arr)
 
-    def tick(self):
-        self.img_ix += 1
-        if self.img_ix >= len(self.img_arr) :
-            self.img_ix = 0
+    def tick(self, dt: float):
+        self.frame_dt += dt
+        while self.frame_dt >= 0.1:
+            self.frame_dt -= 0.1
+            self.img_ix += 1
+            if self.img_ix >= len(self.img_arr):
+                self.img_ix = 0
 
     def get(self) :
         return self.img_arr[self.img_ix]

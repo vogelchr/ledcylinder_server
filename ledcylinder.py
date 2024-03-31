@@ -37,8 +37,8 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
     while hw.running:
         if type(layer_ix) == tuple:
             ix_a, ix_b = layer_ix
-            layers[ix_a].tick()
-            layers[ix_b].tick()
+            layers[ix_a].tick(dt_secs)
+            layers[ix_b].tick(dt_secs)
 
             ndarr_a = np.array(layers[ix_a].get())  # numpy array
             ndarr_b = np.array(layers[ix_b].get())
@@ -49,7 +49,7 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
                 np.power(fade, 3) * ndarr_a + np.power(1.0 - fade, 3) * ndarr_b, 0, 255).astype(np.uint8)
             img = PIL.Image.fromarray(ndarr_combine, 'RGB')
         else:
-            layers[layer_ix].tick()
+            layers[layer_ix].tick(dt_secs)
             img = layers[layer_ix].get()
 
         hw.update(_rotate(img, x_offset))
