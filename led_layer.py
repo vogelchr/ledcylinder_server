@@ -13,8 +13,6 @@ class LED_Layer(ABC):
     def from_file(fn: Path, limit_brightness):
         if '.png' in fn.suffixes or '.jpg' in fn.suffixes:
             return LED_Image.from_file(fn, limit_brightness)
-        if '.txt' in fn.suffixes:
-            return LED_Text.from_file(fn)
 
         return RuntimeError('I do not understand what kind of layer you want to instantiate.')
 
@@ -56,24 +54,3 @@ class LED_Image(LED_Layer):
         pass
 
 
-class LED_Text(LED_Layer):
-    text: str
-
-    def __init__(self, width: int, height: int, text: str):
-        self.width = width
-        self.height = height
-        self.text = text
-
-    @classmethod
-    def from_file(cls, fn: Path):
-        with fn.open() as f:
-            width = int(f.readline())
-            height = int(f.readline())
-            text = f.readline().strip()
-        return cls(width, height, text)
-
-    def get(self):
-        return PIL.Image.new('RGB', (self.width, self.height))
-
-    def tick(self):
-        pass
