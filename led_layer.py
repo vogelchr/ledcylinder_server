@@ -84,7 +84,6 @@ class LED_Anim(LED_Layer):
                     continue
 
                 img_fn = fn.parent / fn.stem / line
-                info(f' frame {img_fn}.')
 
                 ndarr = np.array(PIL.Image.open(img_fn))
                 if shape is None:
@@ -97,12 +96,14 @@ class LED_Anim(LED_Layer):
         vmax = np.amax(frames)
         if vmax > limit_brightness:
             print(f'{fn}: too bright {vmax}, limiting to {limit_brightness}...')
-            frames = np.round(frames * (limit_brightness / vmax)).astype(np.uint8)
+            frames = np.round(
+                frames * (limit_brightness / vmax)).astype(np.uint8)
 
         img_arr = []
         for k in range(frames.shape[0]):
             img_arr.append(PIL.Image.fromarray(frames[k]))
-        info('Animation with {len(img_arr)} frames of size {shape[1]} x {shape[0]}')
+        info(
+            f'Animation with {len(img_arr)} frames of size {shape[1]} x {shape[0]}')
         return cls(shape[1], shape[0], img_arr)
 
     def tick(self, dt: float):
@@ -113,5 +114,5 @@ class LED_Anim(LED_Layer):
             if self.img_ix >= len(self.img_arr):
                 self.img_ix = 0
 
-    def get(self) :
+    def get(self):
         return self.img_arr[self.img_ix]

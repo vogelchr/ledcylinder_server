@@ -126,7 +126,7 @@ def main():
     layers = list()
     for fn in args.layers:
         layer = LED_Layer.from_file(fn, args.limit_brightness)
-        if layer is None :
+        if layer is None:
             continue
         assert layer.width == args.width
         assert layer.height == args.height
