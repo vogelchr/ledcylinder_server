@@ -91,17 +91,20 @@ class LED_Image(LED_Layer):
 
 class LED_Anim(LED_Layer):
     img_arr: List[PIL.Image]
+    time_arr: List[float]
     img_ix: int
     frame_dt: float
 
-    def __init__(self, width: int, height: int, img_arr: List[PIL.Image]):
+    def __init__(self, width: int, height: int, img_arr: List[PIL.Image], time_arr: List[float]):
         super().__init__(width, height)
         self.img_arr = img_arr
+        self.time_arr = time_arr
         self.img_ix = 0
         self.frame_dt = 0.0
 
     @classmethod
     def from_file(cls, fn: Path, limit_brightness: int):
+        time_arr = []
         frames = []
         shape = None
 
@@ -114,13 +117,21 @@ class LED_Anim(LED_Layer):
                 if not line:
                     continue
 
-                img_fn = fn.parent / fn.stem / line
+                img_fn_base, *arr = line.split()
+                img_time = 0.1
+
+                if len(arr) >= 1:
+                    img_time = float(arr[0])
+
+                img_fn = fn.parent / fn.stem / img_fn_base
 
                 ndarr = np.array(PIL.Image.open(img_fn))
                 if shape is None:
                     shape = ndarr.shape
                 assert np.array_equal(shape, ndarr.shape)
+
                 frames.append(ndarr)
+                time_arr.append(img_time)
 
         frames = np.stack(frames, 0)
 
@@ -135,12 +146,12 @@ class LED_Anim(LED_Layer):
             img_arr.append(PIL.Image.fromarray(frames[k]))
         info(
             f'Animation with {len(img_arr)} frames of size {shape[1]} x {shape[0]}')
-        return cls(shape[1], shape[0], img_arr)
+        return cls(shape[1], shape[0], img_arr, time_arr)
 
     def tick(self, dt: float):
         self.frame_dt += dt
-        while self.frame_dt >= 0.1:
-            self.frame_dt -= 0.1
+        while self.frame_dt >= self.time_arr[self.img_ix]:
+            self.frame_dt -= self.time_arr[self.img_ix]
             self.img_ix += 1
             if self.img_ix >= len(self.img_arr):
                 self.img_ix = 0
