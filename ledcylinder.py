@@ -13,23 +13,7 @@ import numpy as np
 from led_layer import LED_Layer
 
 
-def _rotate(src: PIL.Image.Image, xoffs: int):
-    width, height = src.size
-    ret = PIL.Image.new('RGB', src.size)
-
-    src_left = src.crop((0, 0, width - xoffs, height))
-    ret.paste(src_left, (xoffs, 0))
-
-    if xoffs > 0:
-        src_right = src.crop((width - xoffs, 0, width, height))
-        ret.paste(src_right, (0, 0))
-
-    return ret
-
-
 async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
-    x_offset = 0
-
     layer_ix = 0
     dt_remain = args.page_time
     dt_secs = 1.0 / args.fps
@@ -52,13 +36,7 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
             layers[layer_ix].tick(dt_secs)
             img = layers[layer_ix].get()
 
-        hw.update(_rotate(img, x_offset))
-
-        x_offset -= 1
-        if x_offset >= args.width:
-            x_offset = 0
-        if x_offset < 0:
-            x_offset = args.width - 1
+        hw.update(img)
 
         dt_remain -= dt_secs
         if dt_remain < 0:

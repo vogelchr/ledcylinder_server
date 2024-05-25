@@ -1,14 +1,21 @@
-from pathlib import Path
-import PIL.Image
 from abc import abstractmethod, ABC
-from logging import debug, info, warning, fatal, exception
-import numpy as np
+from logging import info, warning
+from pathlib import Path
 from typing import List
+
+import PIL.Image
+import numpy as np
 
 
 class LED_Layer(ABC):
     width: int
     height: int
+    x_offset: int
+
+    def __init__(self, width, height):
+        self.x_offset = 0
+        self.width = width
+        self.height = height
 
     @staticmethod
     def from_file(fn: Path, limit_brightness):
@@ -27,13 +34,32 @@ class LED_Layer(ABC):
     def get(self) -> PIL.Image.Image:
         pass
 
+    def rotate(self, src: PIL.Image.Image) -> PIL.Image.Image:
+        width, height = src.size
+        ret = PIL.Image.new('RGB', src.size)
+
+        src_left = src.crop((0, 0, width - self.x_offset, height))
+        ret.paste(src_left, (self.x_offset, 0))
+
+        if self.x_offset > 0:
+            src_right = src.crop((width - self.x_offset, 0, width, height))
+            ret.paste(src_right, (0, 0))
+
+        self.x_offset -= 1
+        while self.x_offset < 0:
+            self.x_offset += self.width
+        while self.x_offset > self.width:
+            self.x_offset -= self.width
+
+        return ret
+
 
 class LED_Image(LED_Layer):
     img: PIL.Image
 
     def __init__(self, img: PIL.Image):
+        super().__init__(*img.size)
         self.img = img
-        self.width, self.height = self.img.size
 
     @classmethod
     def from_file(cls, fn: Path, limit_brightness: int):
@@ -51,7 +77,7 @@ class LED_Image(LED_Layer):
         return cls(img)
 
     def get(self):
-        return self.img
+        return self.rotate(self.img)
 
     def tick(self, dt: float):
         pass
@@ -63,8 +89,7 @@ class LED_Anim(LED_Layer):
     frame_dt: float
 
     def __init__(self, width: int, height: int, img_arr: List[PIL.Image]):
-        self.width = width
-        self.height = height
+        super().__init__(width, height)
         self.img_arr = img_arr
         self.img_ix = 0
         self.frame_dt = 0.0
@@ -115,4 +140,4 @@ class LED_Anim(LED_Layer):
                 self.img_ix = 0
 
     def get(self):
-        return self.img_arr[self.img_ix]
+        return self.rotate(self.img_arr[self.img_ix])
