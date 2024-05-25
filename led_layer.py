@@ -10,10 +10,13 @@ import numpy as np
 class LED_Layer(ABC):
     width: int
     height: int
-    x_offset: int
 
-    def __init__(self, width, height):
+    x_offset: float
+    x_increment: float
+
+    def __init__(self, width: int, height: int, increment: float = -1.0):
         self.x_offset = 0
+        self.x_increment = increment
         self.width = width
         self.height = height
 
@@ -35,21 +38,24 @@ class LED_Layer(ABC):
         pass
 
     def rotate(self, src: PIL.Image.Image) -> PIL.Image.Image:
-        width, height = src.size
-        ret = PIL.Image.new('RGB', src.size)
+        x_offs_int = int(round(self.x_offset))
 
-        src_left = src.crop((0, 0, width - self.x_offset, height))
-        ret.paste(src_left, (self.x_offset, 0))
-
-        if self.x_offset > 0:
-            src_right = src.crop((width - self.x_offset, 0, width, height))
-            ret.paste(src_right, (0, 0))
-
-        self.x_offset -= 1
+        self.x_offset += self.x_increment
         while self.x_offset < 0:
             self.x_offset += self.width
         while self.x_offset > self.width:
             self.x_offset -= self.width
+
+        if x_offs_int == 0:  # trivial case
+            return src
+
+        width, height = src.size
+        ret = PIL.Image.new('RGB', src.size)
+
+        src_left = src.crop((0, 0, width - x_offs_int, height))
+        ret.paste(src_left, (x_offs_int, 0))
+        src_right = src.crop((width - x_offs_int, 0, width, height))
+        ret.paste(src_right, (0, 0))
 
         return ret
 
