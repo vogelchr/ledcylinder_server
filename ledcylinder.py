@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import logging
+import random
 from logging import info
 from pathlib import Path
 from typing import List
@@ -44,9 +45,16 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
                 layer_ix = layer_ix[1]
                 dt_remain = args.page_time
             else:
-                ix_b = layer_ix + 1
-                if ix_b >= len(layers):
-                    ix_b = 0
+                if args.randomize_pages:
+                    # random page, but not the currently displayed
+                    # one
+                    ix_b = random.randint(0, len(layers) - 2)
+                    if ix_b >= layer_ix:
+                        ix_b += 1
+                else:
+                    ix_b = layer_ix + 1
+                    if ix_b >= len(layers):
+                        ix_b = 0
                 layer_ix = (layer_ix, ix_b)
                 dt_remain = args.fade_time
         await asyncio.sleep(dt_secs)
@@ -82,6 +90,8 @@ def main():
                      help='Switch pages after sec seconds [def:%(default).1f]')
     grp.add_argument('-l', '--limit-brightness', type=int, choices=range(1, 256),
                      default=255, help='Limit brightness of individual pages [def:%(default)d]')
+    grp.add_argument('-r', '--randomize-pages', action='store_true',
+                     help='Randomize order of pages.')
 
     parser.add_argument('layers', type=Path, nargs='+')
 
