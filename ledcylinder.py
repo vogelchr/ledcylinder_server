@@ -76,9 +76,9 @@ def main():
 
     grp.add_argument('-F', '--fps', type=float, metavar='Hz', default=60,
                      help='Frames per Second (approx) [def:%(default).1f]')
-    grp.add_argument('-p', '--page-time', metavar='sec', default=5.0,
+    grp.add_argument('-p', '--page-time', type=float, metavar='sec', default=5.0,
                      help='Switch pages after sec seconds [def:%(default).1f]')
-    grp.add_argument('-f', '--fade-time', metavar='sec', default=1.0,
+    grp.add_argument('-f', '--fade-time', type=float, metavar='sec', default=1.0,
                      help='Switch pages after sec seconds [def:%(default).1f]')
     grp.add_argument('-l', '--limit-brightness', type=int, choices=range(1, 256),
                      default=255, help='Limit brightness of individual pages [def:%(default)d]')
