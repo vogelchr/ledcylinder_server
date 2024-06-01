@@ -55,6 +55,8 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
                     ix_b = layer_ix + 1
                     if ix_b >= len(layers):
                         ix_b = 0
+
+                layers[ix_b].x_increment = np.random.uniform(-1.1, -0.66)
                 layer_ix = (layer_ix, ix_b)
                 dt_remain = args.fade_time
         await asyncio.sleep(dt_secs)
