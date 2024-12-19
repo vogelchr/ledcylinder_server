@@ -90,7 +90,7 @@ def main():
                      help='Switch pages after sec seconds [def:%(default).1f]')
     grp.add_argument('-f', '--fade-time', type=float, metavar='sec', default=1.0,
                      help='Switch pages after sec seconds [def:%(default).1f]')
-    grp.add_argument('-l', '--limit-brightness', type=int, choices=range(1, 256),
+    grp.add_argument('-l', '--limit-brightness', type=int,
                      default=255, help='Limit brightness of individual pages [def:%(default)d]')
     grp.add_argument('-r', '--randomize-pages', action='store_true',
                      help='Randomize order of pages.')
@@ -98,6 +98,9 @@ def main():
     parser.add_argument('layers', type=Path, nargs='+')
 
     args = parser.parse_args()
+
+    if args.limit_brightness < 1 or args.limit_brightness > 255 :
+        print('Error: Brightness limit cannot be <1 or >255!')
 
     # confiure logging
     log_lvl = logging.INFO
