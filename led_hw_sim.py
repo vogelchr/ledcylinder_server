@@ -8,14 +8,15 @@ import pygame.locals
 
 
 class HW_PyGame:
-    def __init__(self, loop, width, height):
+    def __init__(self, loop, width, height, scale):
         self.loop = loop
         self.width, self.height = width, height
         self.running = True
+        self.scale = scale
 
         pygame.init()
         self.window = pygame.display.set_mode(
-            (3*self.width+1, 3*self.height+1))
+            (scale*self.width+1, scale*self.height+1))
         self.evt_consumer = loop.create_task(self._evt_consumer_coro())
 
     # stop the 'HW'
@@ -41,13 +42,13 @@ class HW_PyGame:
     def update(self, img: PIL.Image):
         assert img.mode == 'RGB'
 
-        rect = pygame.Rect(0, 0, 3*self.width+1, 3*self.height+1)
+        rect = pygame.Rect(0, 0, self.scale*self.width+1, self.scale*self.height+1)
         pygame.draw.rect(self.window, (0x10, 0x10, 0x10), rect)
 
         # this is very, very inefficient
         for x in range(min(self.width, img.size[0])):
             for y in range(min(self.height, img.size[1])):
-                rect = pygame.Rect(x*3+1, y*3+1, 2, 2)
+                rect = pygame.Rect(x*self.scale+1, y*self.scale+1, self.scale-1, self.scale-1)
                 pygame.draw.rect(self.window, img.getpixel((x, y)), rect)
 
         pygame.display.flip()

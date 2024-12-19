@@ -125,7 +125,7 @@ def main():
     if args.simulation:
         info('Starting pygame simulator hardware...')
         from led_hw_sim import HW_PyGame
-        hw = HW_PyGame(loop, args.width, args.height)
+        hw = HW_PyGame(loop, args.width, args.height, 5)
     else:
         info('Running with real USB hardware...')
         from led_hw_usb import HW_USB
