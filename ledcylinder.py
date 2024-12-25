@@ -9,9 +9,49 @@ from pathlib import Path
 from typing import List
 
 import PIL.Image
+import evdev
+import evdev.ecodes
 import numpy as np
 
 from led_layer import LED_Layer
+
+
+async def keyboard_task(keydev: evdev.InputDevice):
+    key_pressed = dict()
+
+    keydev.grab()
+    async for evt in keydev.async_read_loop():
+        evt: evdev.InputEvent
+
+        if evt.type != evdev.ecodes.EV_KEY:
+            # info(f'Not EV_KEY event: {evt}.')
+            continue
+
+        keyname = None
+        if evt.code == evdev.ecodes.KEY_O:
+            keyname = 'o'
+        elif evt.code == evdev.ecodes.KEY_I:
+            keyname = 'i'
+
+        if keyname is None:
+            # info(f'Key not I or O.')
+            continue
+
+        info(f'{keyname} {evt.value}')
+
+        if evt.value and not key_pressed.get(keyname):
+            key_pressed[keyname] = 1
+            keyname += '_pressed'
+        elif not evt.value and key_pressed.get(keyname):
+            key_pressed[keyname] = 0
+            keyname += '_released'
+        else:
+            keyname = None
+
+        if not keyname:
+            continue
+
+        info(f'Key processing: {keyname}.')
 
 
 async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
@@ -92,10 +132,11 @@ def main():
                      help='Switch pages after sec seconds [def:%(default).1f]')
     grp.add_argument('-f', '--fade-time', type=float, metavar='sec', default=1.0,
                      help='Switch pages after sec seconds [def:%(default).1f]')
-    grp.add_argument('-l', '--limit-brightness', type=int,
-                     default=255, help='Limit brightness of individual pages [def:%(default)d]')
-    grp.add_argument('-r', '--randomize-pages', action='store_true',
-                     help='Randomize order of pages.')
+    grp.add_argument('-l', '--limit-brightness', type=int, default=255,
+                     help='Limit brightness of individual pages [def:%(default)d]')
+    grp.add_argument('-r', '--randomize-pages', action='store_true', help='Randomize order of pages.')
+
+    grp.add_argument('-e', '--evdev', type=Path, help='Support button for flash, use /dev/input/eventXX')
 
     parser.add_argument('layers', type=Path, nargs='+')
 
@@ -135,6 +176,13 @@ def main():
         info('Running with real USB hardware...')
         from led_hw_usb import HW_USB
         hw = HW_USB()
+
+    if args.evdev:
+        try:
+            key_dev = evdev.InputDevice(args.evdev)
+            loop.create_task(keyboard_task(key_dev))
+        except Exception as exc:
+            exception('Could not start evdev handler, exception raised!')
     try:
         info('Starting mainloop..')
         loop.run_until_complete(mainloop(args, layers, hw))
