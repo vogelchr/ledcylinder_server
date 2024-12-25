@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import logging
 import random
-from logging import info
+from logging import info, exception
 from pathlib import Path
 from typing import List
 
@@ -70,8 +70,8 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
 
             fade = dt_remain / args.fade_time
 
-            ndarr_combine = np.clip(
-                np.power(fade, 3) * ndarr_a + np.power(1.0 - fade, 3) * ndarr_b, 0, 255).astype(np.uint8)
+            ndarr_combine = np.clip(np.power(fade, 3) * ndarr_a + np.power(1.0 - fade, 3) * ndarr_b, 0, 255).astype(
+                np.uint8)
             img = PIL.Image.fromarray(ndarr_combine, 'RGB')
         else:
             layers[layer_ix].tick(dt_secs)
@@ -96,8 +96,8 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
                     if ix_b >= len(layers):
                         ix_b = 0
 
-# this looks shitty
-#                layers[ix_b].x_increment = np.random.uniform(-1.1, -0.66)
+                # this looks shitty
+                #                layers[ix_b].x_increment = np.random.uniform(-1.1, -0.66)
                 layers[ix_b].x_increment = -1
                 layer_ix = (layer_ix, ix_b)
                 dt_remain = args.fade_time
@@ -109,20 +109,15 @@ def main():
 
     grp = parser.add_argument_group('Logging')
 
-    grp.add_argument('-q', '--quiet', action='store_true',
-                     help='Be quiet (logging level: warning)')
-    grp.add_argument('-v', '--verbose', action='store_true',
-                     help='Be verbose (logging level: debug)')
+    grp.add_argument('-q', '--quiet', action='store_true', help='Be quiet (logging level: warning)')
+    grp.add_argument('-v', '--verbose', action='store_true', help='Be verbose (logging level: debug)')
 
     grp = parser.add_argument_group('Hardware')
 
-    grp.add_argument('-W', '--width', type=int, default=128,
-                     help='LED panel width [def:%(default)d]')
-    grp.add_argument('-H', '--height', type=int, default=8,
-                     help='LED panel height [def:%(default)d]')
+    grp.add_argument('-W', '--width', type=int, default=128, help='LED panel width [def:%(default)d]')
+    grp.add_argument('-H', '--height', type=int, default=8, help='LED panel height [def:%(default)d]')
 
-    grp.add_argument('-S', '--simulation', action='store_true',
-                     help='Simulate with pyGame')
+    grp.add_argument('-S', '--simulation', action='store_true', help='Simulate with pyGame')
 
     grp = parser.add_argument_group('Rendering')
 
@@ -142,7 +137,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.limit_brightness < 1 or args.limit_brightness > 255 :
+    if args.limit_brightness < 1 or args.limit_brightness > 255:
         print('Error: Brightness limit cannot be <1 or >255!')
 
     # confiure logging
@@ -161,12 +156,15 @@ def main():
     info('Loading layers.')
     layers = list()
     for fn in args.layers:
-        layer = LED_Layer.from_file(fn, args.limit_brightness)
-        if layer is None:
-            continue
-        assert layer.width == args.width
-        assert layer.height == args.height
-        layers.append(layer)
+        try:
+            layer = LED_Layer.from_file(fn, args.limit_brightness)
+            if layer is None:
+                continue
+            assert layer.width == args.width
+            assert layer.height == args.height
+            layers.append(layer)
+        except Exception as exc:
+            exception(f'Cannot load page {fn}, exception caught!')
 
     if args.simulation:
         info('Starting pygame simulator hardware...')
