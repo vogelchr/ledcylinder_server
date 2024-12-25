@@ -16,7 +16,7 @@ import numpy as np
 from led_layer import LED_Layer
 
 
-async def keyboard_task(keydev: evdev.InputDevice):
+async def keyboard_task(keydev: evdev.InputDevice, cmdq: asyncio.Queue[str]):
     key_pressed = dict()
 
     keydev.grab()
@@ -37,7 +37,7 @@ async def keyboard_task(keydev: evdev.InputDevice):
             # info(f'Key not I or O.')
             continue
 
-        info(f'{keyname} {evt.value}')
+        # info(f'{keyname} {evt.value}')
 
         if evt.value and not key_pressed.get(keyname):
             key_pressed[keyname] = 1
@@ -51,15 +51,40 @@ async def keyboard_task(keydev: evdev.InputDevice):
         if not keyname:
             continue
 
-        info(f'Key processing: {keyname}.')
+        # info(f'Key processing: {keyname}.')
+        cmdq.put_nowait(keyname)
 
 
-async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
+async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: asyncio.Queue[str]):
     layer_ix = 0
     dt_remain = args.page_time
     dt_secs = 1.0 / args.fps
 
+    output_active = True
+    flash_active = False
+
+    all_white_img = PIL.Image.new('RGB', (hw.width, hw.height))
+    all_white_img.paste((255, 255, 255), (0, 0) + all_white_img.size)
+    all_black_img = PIL.Image.new('RGB', (hw.width, hw.height))
+    all_black_img.paste((0, 0, 0), (0, 0) + all_black_img.size)
+
     while hw.running:
+        if not cmdq.empty():
+            cmd = cmdq.get_nowait()
+
+            if cmd == 'i_pressed':
+                info('Blitzdings on!')
+                flash_active = True
+            elif cmd == 'i_released':
+                info('Blitzdings off!')
+                flash_active = False
+            elif cmd == 'o_pressed':
+                output_active = not output_active
+                if output_active :
+                    info('Normal output.')
+                else :
+                    info('Blackout!')
+
         if type(layer_ix) == tuple:
             ix_a, ix_b = layer_ix
             layers[ix_a].tick(dt_secs)
@@ -77,7 +102,13 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw):
             layers[layer_ix].tick(dt_secs)
             img = layers[layer_ix].get()
 
-        hw.update(img)
+        if flash_active:
+            hw.update(all_white_img)
+        else:
+            if output_active:
+                hw.update(img)
+            else:
+                hw.update(all_black_img)
 
         dt_remain -= dt_secs
         if dt_remain < 0:
@@ -175,18 +206,24 @@ def main():
         from led_hw_usb import HW_USB
         hw = HW_USB()
 
+    cmdq = asyncio.Queue()
+
+    key_task = None
     if args.evdev:
         try:
             key_dev = evdev.InputDevice(args.evdev)
-            loop.create_task(keyboard_task(key_dev))
+            key_task = loop.create_task(keyboard_task(key_dev, cmdq))
         except Exception as exc:
             exception('Could not start evdev handler, exception raised!')
     try:
         info('Starting mainloop..')
-        loop.run_until_complete(mainloop(args, layers, hw))
+        loop.run_until_complete(mainloop(args, layers, hw, cmdq))
     except KeyboardInterrupt:
         if args.simulation:
             hw.stop()
+
+    if key_task:
+        key_task.cancel()
 
 
 if __name__ == '__main__':
