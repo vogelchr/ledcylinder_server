@@ -1,0 +1,12 @@
+# install as ~/.config/systemd/user/ledcylinder.service
+
+[Unit]
+Description=led cylinder server
+
+[Install]
+WantedBy=default.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python ./ledcylinder.py -r -l 32 -e scan ./pages
+WorkingDirectory=/home/chris/ledcylinder_server
