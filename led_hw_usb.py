@@ -7,6 +7,8 @@ class HW_USB:
         self.dev = usb.core.find(idVendor=0xcafe, idProduct=0x4010)
         self.dev.set_configuration()
         self.dev.ctrl_transfer(0x40, 0)  # set write pointer
+        self.width = 128
+        self.height = 8
         self.running = True
 
     # update pixel matrix from PIL Image
