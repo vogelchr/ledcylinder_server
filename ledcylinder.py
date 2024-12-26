@@ -162,7 +162,7 @@ def main():
                      help='Limit brightness of individual pages [def:%(default)d]')
     grp.add_argument('-r', '--randomize-pages', action='store_true', help='Randomize order of pages.')
 
-    grp.add_argument('-e', '--evdev', type=Path, help='Support button for flash, use /dev/input/eventXX')
+    grp.add_argument('-e', '--evdev', type=str, help='Support button for flash, use /dev/input/eventXX')
 
     parser.add_argument('layers', type=Path, nargs='+')
 
@@ -211,8 +211,20 @@ def main():
     key_task = None
     if args.evdev:
         try:
-            key_dev = evdev.InputDevice(args.evdev)
-            key_task = loop.create_task(keyboard_task(key_dev, cmdq))
+            if args.evdev == "scan" :
+                info('Scanning for evdev...')
+                for fn in evdev.list_devices() :
+                    key_dev = evdev.InputDevice(fn)
+                    if key_dev.name.startswith('PicoMK Pico Keyboard') :
+                        args.evdev = fn
+                        info('Using first PicoMK Pico Keyboard: {d}.')
+                        break
+            else :
+                key_dev = evdev.InputDevice(args.evdev)
+
+            if key_dev :
+                key_task = loop.create_task(keyboard_task(key_dev, cmdq))
+                info(f'Using event dev {args.evdev} as control buttons...')
         except Exception as exc:
             exception('Could not start evdev handler, exception raised!')
     try:
