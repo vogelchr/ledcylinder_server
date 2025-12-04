@@ -2,3 +2,4 @@ numpy
 pillow
 pygame
 pyusb
+evdev
