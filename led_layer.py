@@ -69,7 +69,7 @@ class LED_Image(LED_Layer):
         arr = np.array(img)
         vmax = np.amax(arr)
         if vmax > limit_brightness:
-            print(f'{fn}: too bright {vmax}, limiting to {limit_brightness}...')
+            info(f'{fn}: too bright {vmax}, limiting to {limit_brightness}...')
             arr = np.round(arr * (limit_brightness / vmax)).astype(np.uint8)
         return cls(arr)
 

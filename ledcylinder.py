@@ -4,9 +4,10 @@ import argparse
 import asyncio
 import logging
 import random
-from logging import info, exception, warning, debug
+from logging import info, exception, warning, debug, error
 from pathlib import Path
 from typing import List
+import sys
 
 import PIL.Image
 import evdev
@@ -21,7 +22,7 @@ def scan_for_keyboard():
 
     for fn in evdev.list_devices():
         key_dev = evdev.InputDevice(fn)
-        print(f'Trying {fn}: {key_dev}.')
+        info(f'Trying {fn}: {key_dev}.')
 
         if not key_dev.name.startswith('PicoMK Pico Keyboard'):
             info(f' ..skipping, does not start with "PicoMK Pico Keyboard"')
@@ -231,9 +232,6 @@ def main():
 
     args = parser.parse_args()
 
-    if args.limit_brightness < 1 or args.limit_brightness > 255:
-        print('Error: Brightness limit cannot be <1 or >255!')
-
     # confiure logging
     log_lvl = logging.INFO
     if args.verbose:
@@ -242,7 +240,10 @@ def main():
         log_lvl = logging.WARNING
 
     logging.basicConfig(level=log_lvl, format='%(asctime)s %(message)s')
-    loop = asyncio.new_event_loop()
+
+    if args.limit_brightness < 1 or args.limit_brightness > 255:
+        error('Error: Brightness limit cannot be <1 or >255!')
+        sys.exit(1)
 
     if len(args.layers) == 1 and args.layers[0].is_dir():
         args.layers = sorted(args.layers[0].glob('*'))
@@ -263,6 +264,7 @@ def main():
             exception(f'Cannot load page {fn}, exception caught!')
 
     cmdq = asyncio.Queue()
+    loop = asyncio.new_event_loop()
 
     if args.simulation:
         info('Starting pygame simulator hardware...')
