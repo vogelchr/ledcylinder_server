@@ -213,16 +213,16 @@ def main():
         except Exception as exc:
             exception(f'Cannot load page {fn}, exception caught!')
 
+    cmdq = asyncio.Queue()
+
     if args.simulation:
         info('Starting pygame simulator hardware...')
         from led_hw_sim import HW_PyGame
-        hw = HW_PyGame(loop, args.width, args.height, 5)
+        hw = HW_PyGame(loop, args.width, args.height, 5, cmdq)
     else:
         info('Running with real USB hardware...')
         from led_hw_usb import HW_USB
         hw = HW_USB()
-
-    cmdq = asyncio.Queue()
 
     key_task = None
     if args.evdev:

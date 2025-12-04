@@ -7,11 +7,12 @@ import pygame.locals
 import numpy as np
 
 class HW_PyGame:
-    def __init__(self, loop, width, height, scale):
+    def __init__(self, loop: asyncio.AbstractEventLoop, width: int, height: int, scale: int, cmdq: asyncio.Queue[str]):
         self.loop = loop
         self.width, self.height = width, height
         self.running = True
         self.scale = scale
+        self.cmdq = cmdq
 
         pygame.init()
         self.window = pygame.display.set_mode(
@@ -33,9 +34,20 @@ class HW_PyGame:
             if event.type == pygame.locals.QUIT:
                 info('Window has been closed, exiting.')
                 self.running = False
-            if event.type == pygame.locals.KEYUP and event.key == pygame.locals.K_ESCAPE:
-                info('ESC has been presed, exiting.')
-                self.running = False
+            elif event.type == pygame.locals.KEYUP :
+                if event.key == pygame.locals.K_ESCAPE:
+                    info('ESC has been presed, exiting.')
+                    self.running = False
+                if event.key == pygame.locals.K_o:
+                    self.cmdq.put_nowait('o_released')
+                if event.key == pygame.locals.K_i:
+                    self.cmdq.put_nowait('i_released')
+            elif event.type == pygame.locals.KEYDOWN :
+                if event.key == pygame.locals.K_o:
+                    self.cmdq.put_nowait('o_pressed')
+                if event.key == pygame.locals.K_i:
+                    self.cmdq.put_nowait('i_pressed')
+            
 
     # update pixel matrix from PIL Image
     def update(self, img: np.ndarray):
@@ -43,11 +55,13 @@ class HW_PyGame:
         assert img.shape == (self.height, self.width, 3)
         assert img.dtype == np.uint8
 
-        rect = pygame.Rect(0, 0, self.scale*self.width+1, self.scale*self.height+1)
+        rect = pygame.Rect(0, 0, self.scale*self.width +
+                           1, self.scale*self.height+1)
         pygame.draw.rect(self.window, (0x10, 0x10, 0x10), rect)
 
         for y, x in np.ndindex(img.shape[0:2]):
-            rect = pygame.Rect(x*self.scale+1, y*self.scale+1, self.scale-1, self.scale-1)
+            rect = pygame.Rect(x*self.scale+1, y*self.scale +
+                               1, self.scale-1, self.scale-1)
             pygame.draw.rect(self.window, img[y, x], rect)
 
         pygame.display.flip()
