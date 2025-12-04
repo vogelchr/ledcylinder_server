@@ -2,10 +2,9 @@
 import asyncio
 from logging import critical, debug, error, info, warning
 
-import PIL.Image
 import pygame
 import pygame.locals
-
+import numpy as np
 
 class HW_PyGame:
     def __init__(self, loop, width, height, scale):
@@ -39,16 +38,16 @@ class HW_PyGame:
                 self.running = False
 
     # update pixel matrix from PIL Image
-    def update(self, img: PIL.Image):
-        assert img.mode == 'RGB'
+    def update(self, img: np.ndarray):
+        assert img.ndim == 3
+        assert img.shape == (self.height, self.width, 3)
+        assert img.dtype == np.uint8
 
         rect = pygame.Rect(0, 0, self.scale*self.width+1, self.scale*self.height+1)
         pygame.draw.rect(self.window, (0x10, 0x10, 0x10), rect)
 
-        # this is very, very inefficient
-        for x in range(min(self.width, img.size[0])):
-            for y in range(min(self.height, img.size[1])):
-                rect = pygame.Rect(x*self.scale+1, y*self.scale+1, self.scale-1, self.scale-1)
-                pygame.draw.rect(self.window, img.getpixel((x, y)), rect)
+        for y, x in np.ndindex(img.shape[0:2]):
+            rect = pygame.Rect(x*self.scale+1, y*self.scale+1, self.scale-1, self.scale-1)
+            pygame.draw.rect(self.window, img[y, x], rect)
 
         pygame.display.flip()

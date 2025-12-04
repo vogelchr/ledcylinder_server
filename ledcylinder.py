@@ -4,7 +4,7 @@ import argparse
 import asyncio
 import logging
 import random
-from logging import info, exception
+from logging import info, exception, warning, debug
 from pathlib import Path
 from typing import List
 
@@ -63,10 +63,8 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
     output_active = True
     flash_active = False
 
-    all_white_img = PIL.Image.new('RGB', (hw.width, hw.height))
-    all_white_img.paste((255, 255, 255), (0, 0) + all_white_img.size)
-    all_black_img = PIL.Image.new('RGB', (hw.width, hw.height))
-    all_black_img.paste((0, 0, 0), (0, 0) + all_black_img.size)
+    all_white_img = np.full((hw.height, hw.width, 3), 0xff, dtype=np.uint8)
+    all_black_img = np.full((hw.height, hw.width, 3), 0x00, dtype=np.uint8)
 
     while hw.running:
         if not cmdq.empty():
@@ -94,10 +92,9 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
             ndarr_b = np.array(layers[ix_b].get())
 
             fade = dt_remain / args.fade_time
+            img = np.clip(np.power(fade, 3) * ndarr_a + np.power(1.0 -
+                          fade, 3) * ndarr_b, 0, 255).astype(np.uint8)
 
-            ndarr_combine = np.clip(np.power(fade, 3) * ndarr_a + np.power(1.0 - fade, 3) * ndarr_b, 0, 255).astype(
-                np.uint8)
-            img = PIL.Image.fromarray(ndarr_combine, 'RGB')
         elif type(layer_ix) == int:
             layers[layer_ix].tick(dt_secs)
             img = layers[layer_ix].get()
@@ -198,8 +195,9 @@ def main():
             layer = LED_Layer.from_file(fn, args.limit_brightness)
             if layer is None:
                 continue
-            assert layer.width == args.width
-            assert layer.height == args.height
+            if layer.width != args.width or layer.height != args.height :
+                warning(f'Cannot load {fn}, incorrect size ({layer.width}x{layer.height})!')
+                continue
             layers.append(layer)
         except Exception as exc:
             exception(f'Cannot load page {fn}, exception caught!')

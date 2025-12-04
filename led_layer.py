@@ -1,7 +1,7 @@
 from abc import abstractmethod, ABC
-from logging import info, warning
+from logging import info, warning, error
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Tuple
 
 import PIL.Image
 import numpy as np
@@ -23,9 +23,12 @@ class LED_Layer(ABC):
     @staticmethod
     def from_file(fn: Path, limit_brightness):
         if '.png' in fn.suffixes or '.jpg' in fn.suffixes:
-            return LED_Image.from_file(fn, limit_brightness)
+            return LED_Image.from_file_image(fn, limit_brightness)
         if '.ani' in fn.suffixes:
-            return LED_Anim.from_file(fn, limit_brightness)
+            return LED_Anim.from_file_anim(fn, limit_brightness)
+        if '.aseprite' in fn.suffixes :
+            # ignore
+            return None
         warning(f'Unknown extension for {fn}, ignoring!')
         return None
 
@@ -34,41 +37,30 @@ class LED_Layer(ABC):
         pass
 
     @abstractmethod
-    def get(self) -> PIL.Image.Image:
+    def get(self) -> np.ndarray:
         pass
 
-    def rotate(self, src: PIL.Image.Image) -> PIL.Image.Image:
+    def rotate(self, src: np.ndarray) -> np.ndarray:
         x_offs_int = int(round(self.x_offset))
 
         self.x_offset += self.x_increment
-        while self.x_offset < 0:
+        while self.x_offset < 0 :
             self.x_offset += self.width
-        while self.x_offset > self.width:
+        while self.x_offset > self.width :
             self.x_offset -= self.width
 
-        if x_offs_int == 0:  # trivial case
-            return src
-
-        width, height = src.size
-        ret = PIL.Image.new('RGB', src.size)
-
-        src_left = src.crop((0, 0, width - x_offs_int, height))
-        ret.paste(src_left, (x_offs_int, 0))
-        src_right = src.crop((width - x_offs_int, 0, width, height))
-        ret.paste(src_right, (0, 0))
-
-        return ret
+        return np.roll(src, x_offs_int, axis=1)
 
 
 class LED_Image(LED_Layer):
     img: PIL.Image
 
     def __init__(self, img: PIL.Image):
-        super().__init__(*img.size)
+        super().__init__(img.shape[1], img.shape[0])  # width/height
         self.img = img
 
     @classmethod
-    def from_file(cls, fn: Path, limit_brightness: int):
+    def from_file_image(cls, fn: Path, limit_brightness: int):
         img = PIL.Image.open(fn)
         if img.mode != 'RGB':
             warning(f'Image {fn} is not mode RGB, but {img.mode}.')
@@ -79,8 +71,7 @@ class LED_Image(LED_Layer):
         if vmax > limit_brightness:
             print(f'{fn}: too bright {vmax}, limiting to {limit_brightness}...')
             arr = np.round(arr * (limit_brightness / vmax)).astype(np.uint8)
-            img = PIL.Image.fromarray(arr, 'RGB')
-        return cls(img)
+        return cls(arr)
 
     def get(self):
         return self.rotate(self.img)
@@ -90,12 +81,12 @@ class LED_Image(LED_Layer):
 
 
 class LED_Anim(LED_Layer):
-    img_arr: List[PIL.Image]
+    img_arr: np.ndarray  # [n-frames,height,width,3(rgb)]
     time_arr: List[float]
     img_ix: int
     frame_dt: float
 
-    def __init__(self, width: int, height: int, img_arr: List[PIL.Image], time_arr: List[float]):
+    def __init__(self, width: int, height: int, img_arr: np.ndarray, time_arr: List[float]):
         super().__init__(width, height)
         self.img_arr = img_arr
         self.time_arr = time_arr
@@ -103,10 +94,10 @@ class LED_Anim(LED_Layer):
         self.frame_dt = 0.0
 
     @classmethod
-    def from_file(cls, fn: Path, limit_brightness: int):
+    def from_file_anim(cls, fn: Path, limit_brightness: int):
         time_arr = []
         frames = []
-        shape = None
+        shape: Optional[Tuple] = None
 
         info(f'Loading animation from {fn}...')
         with fn.open() as f:
@@ -133,20 +124,20 @@ class LED_Anim(LED_Layer):
                 frames.append(ndarr)
                 time_arr.append(img_time)
 
+        if shape is None:  # no frames!
+            error('Empty animation!')
+            return None
+
         frames = np.stack(frames, 0)
 
         vmax = np.amax(frames)
         if vmax > limit_brightness:
-            print(f'{fn}: too bright {vmax}, limiting to {limit_brightness}...')
+            error(f'{fn}: too bright {vmax}, limiting to {limit_brightness}...')
             frames = np.round(
                 frames * (limit_brightness / vmax)).astype(np.uint8)
 
-        img_arr = []
-        for k in range(frames.shape[0]):
-            img_arr.append(PIL.Image.fromarray(frames[k]))
-        info(
-            f'Animation with {len(img_arr)} frames of size {shape[1]} x {shape[0]}')
-        return cls(shape[1], shape[0], img_arr, time_arr)
+        info(f'Animation with {frames.shape[0]} frames of size {frames.shape[2]} x {frames.shape[1]}.')
+        return cls(shape[1], shape[0], frames, time_arr)
 
     def tick(self, dt: float):
         self.frame_dt += dt
