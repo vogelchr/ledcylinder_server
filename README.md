@@ -35,4 +35,11 @@ Run the code as such (`-S`: simulator).
 
 There's an external controller which sends keycodes for the `i` or `o` keys (us or german keyboard assumed). Key `i` flashes the whole matrix, to annoy all hackers sitting in the vicinity. Key `o` turns the matrix completely black. Use the `-e` argument to enable this feature. `-e scan` scans for one particular keyboard device.
 
-###
+### Allow r/w access to the magic button and the usb device.
+
+Copy `systemd_udev/*.rules` to `/etc/udev/rules.d`. Restart (or do the udevadm dance).
+
+### Run on startup.
+
+Copy `systemd_udev/*.service` to `~/.config/systemd/user`, then `systemctl --user enable ledylinder.service`, then probably also `sudo loginctl enable-linger USER`, for your particular user.
+
