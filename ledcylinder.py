@@ -66,6 +66,10 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
     all_white_img = np.full((hw.height, hw.width, 3), 0xff, dtype=np.uint8)
     all_black_img = np.full((hw.height, hw.width, 3), 0x00, dtype=np.uint8)
 
+    # avoid too many object creations/deletions
+    fade_img = np.zeros((hw.height, hw.width, 3), dtype='f')
+    fade_tmp = np.zeros((hw.height, hw.width, 3), dtype='f')
+
     while hw.running:
         if not cmdq.empty():
             cmd = cmdq.get_nowait()
@@ -88,12 +92,19 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
             layers[ix_a].tick(dt_secs)
             layers[ix_b].tick(dt_secs)
 
-            ndarr_a = np.array(layers[ix_a].get())  # numpy array
-            ndarr_b = np.array(layers[ix_b].get())
-
             fade = dt_remain / args.fade_time
-            img = np.clip(np.power(fade, 3) * ndarr_a + np.power(1.0 -
-                          fade, 3) * ndarr_b, 0, 255).astype(np.uint8)
+
+            # try to avoid creation of too many tmp arrays
+            fade_img[...] = layers[ix_a].get()
+            fade_img *= np.power(fade, 3)
+
+            fade_tmp[...] = layers[ix_b].get()
+            fade_tmp *= np.power(1 - fade, 3)
+            fade_img += fade_tmp
+
+            fade_img = np.clip(fade_img, 0, 255)
+
+            img = fade_img.astype(np.uint8)
 
         elif type(layer_ix) == int:
             layers[layer_ix].tick(dt_secs)
