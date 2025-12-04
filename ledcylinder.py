@@ -98,9 +98,12 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
             ndarr_combine = np.clip(np.power(fade, 3) * ndarr_a + np.power(1.0 - fade, 3) * ndarr_b, 0, 255).astype(
                 np.uint8)
             img = PIL.Image.fromarray(ndarr_combine, 'RGB')
-        else:
+        elif type(layer_ix) == int:
             layers[layer_ix].tick(dt_secs)
             img = layers[layer_ix].get()
+        else:
+            raise RuntimeError(
+                'Fatal error, laxer ix neither tuple nor integer!')
 
         if flash_active:
             hw.update(all_white_img)
@@ -115,7 +118,7 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
             if type(layer_ix) == tuple:
                 layer_ix = layer_ix[1]
                 dt_remain = args.page_time
-            else:
+            elif type(layer_ix) == int:
                 if args.randomize_pages:
                     # random page, but not the currently displayed
                     # one
@@ -132,6 +135,10 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
                 layers[ix_b].x_increment = -1
                 layer_ix = (layer_ix, ix_b)
                 dt_remain = args.fade_time
+            else:
+                raise RuntimeError(
+                    'Fatal error, laxer ix neither tuple nor integer!')
+
         await asyncio.sleep(dt_secs)
 
 
@@ -210,6 +217,7 @@ def main():
 
     key_task = None
     if args.evdev:
+        key_dev = None
         try:
             if args.evdev == "scan" :
                 info('Scanning for evdev...')

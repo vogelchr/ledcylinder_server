@@ -14,3 +14,6 @@ class HW_USB:
     # update pixel matrix from PIL Image
     def update(self, img: PIL.Image.Image):
         self.dev.write(1, img.tobytes())
+
+    def stop(self) :
+        return None
