@@ -16,12 +16,48 @@ import numpy as np
 from led_layer import LED_Layer
 
 
+def scan_for_keyboard():
+    info('Scanning for useable keyboard...')
+
+    for fn in evdev.list_devices():
+        key_dev = evdev.InputDevice(fn)
+        print(f'Trying {fn}: {key_dev}.')
+
+        if not key_dev.name.startswith('PicoMK Pico Keyboard'):
+            info(f' ..skipping, does not start with "PicoMK Pico Keyboard"')
+            continue
+
+        caps = key_dev.capabilities()
+        if not evdev.ecodes.EV_KEY in caps:
+            info(f' ..skipping, does not have EV_KEY capabilities!')
+            continue
+
+        if not evdev.ecodes.KEY_O in caps[evdev.ecodes.EV_KEY]:
+            info(f' ..skipping, does not have an "O" key!')
+            continue
+
+        if not evdev.ecodes.KEY_I in caps[evdev.ecodes.EV_KEY]:
+            info(f' ..skipping, does not have an "I" key!')
+            continue
+
+        info(' ..This keyboard seems useable!')
+        return key_dev
+
+    info('No useable keyboard found.')
+    return None
+
+
 async def keyboard_task(keydev: evdev.InputDevice, cmdq: asyncio.Queue[str]):
     key_pressed = dict()
 
+    debug(f'Grabbing keyboard device {keydev}...')
     keydev.grab()
+
+    debug('Running keyboard main loop...')
     async for evt in keydev.async_read_loop():
         evt: evdev.InputEvent
+
+        debug(f'{evt}')
 
         if evt.type != evdev.ecodes.EV_KEY:
             # info(f'Not EV_KEY event: {evt}.')
@@ -34,10 +70,8 @@ async def keyboard_task(keydev: evdev.InputDevice, cmdq: asyncio.Queue[str]):
             keyname = 'i'
 
         if keyname is None:
-            # info(f'Key not I or O.')
+            debug(f'Key not I or O.')
             continue
-
-        # info(f'{keyname} {evt.value}')
 
         if evt.value and not key_pressed.get(keyname):
             key_pressed[keyname] = 1
@@ -53,6 +87,13 @@ async def keyboard_task(keydev: evdev.InputDevice, cmdq: asyncio.Queue[str]):
 
         # info(f'Key processing: {keyname}.')
         cmdq.put_nowait(keyname)
+
+
+async def wrap_keyboard_task(keydev: evdev.InputDevice, cmdq: asyncio.Queue[str]):
+    try:
+        await keyboard_task(keydev, cmdq)
+    except Exception as exc:
+        exception('Exception caught in keyboard task!')
 
 
 async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: asyncio.Queue[str]):
@@ -82,9 +123,9 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
                 flash_active = False
             elif cmd == 'o_pressed':
                 output_active = not output_active
-                if output_active :
+                if output_active:
                     info('Normal output.')
-                else :
+                else:
                     info('Blackout!')
 
         if type(layer_ix) == tuple:
@@ -155,15 +196,20 @@ def main():
 
     grp = parser.add_argument_group('Logging')
 
-    grp.add_argument('-q', '--quiet', action='store_true', help='Be quiet (logging level: warning)')
-    grp.add_argument('-v', '--verbose', action='store_true', help='Be verbose (logging level: debug)')
+    grp.add_argument('-q', '--quiet', action='store_true',
+                     help='Be quiet (logging level: warning)')
+    grp.add_argument('-v', '--verbose', action='store_true',
+                     help='Be verbose (logging level: debug)')
 
     grp = parser.add_argument_group('Hardware')
 
-    grp.add_argument('-W', '--width', type=int, default=128, help='LED panel width [def:%(default)d]')
-    grp.add_argument('-H', '--height', type=int, default=8, help='LED panel height [def:%(default)d]')
+    grp.add_argument('-W', '--width', type=int, default=128,
+                     help='LED panel width [def:%(default)d]')
+    grp.add_argument('-H', '--height', type=int, default=8,
+                     help='LED panel height [def:%(default)d]')
 
-    grp.add_argument('-S', '--simulation', action='store_true', help='Simulate with pyGame')
+    grp.add_argument('-S', '--simulation', action='store_true',
+                     help='Simulate with pyGame')
 
     grp = parser.add_argument_group('Rendering')
 
@@ -175,9 +221,11 @@ def main():
                      help='Switch pages after sec seconds [def:%(default).1f]')
     grp.add_argument('-l', '--limit-brightness', type=int, default=255,
                      help='Limit brightness of individual pages [def:%(default)d]')
-    grp.add_argument('-r', '--randomize-pages', action='store_true', help='Randomize order of pages.')
+    grp.add_argument('-r', '--randomize-pages',
+                     action='store_true', help='Randomize order of pages.')
 
-    grp.add_argument('-e', '--evdev', type=str, help='Support button for flash, use /dev/input/eventXX')
+    grp.add_argument('-e', '--evdev', type=str,
+                     help='Support button for flash, use /dev/input/eventXX')
 
     parser.add_argument('layers', type=Path, nargs='+')
 
@@ -206,8 +254,9 @@ def main():
             layer = LED_Layer.from_file(fn, args.limit_brightness)
             if layer is None:
                 continue
-            if layer.width != args.width or layer.height != args.height :
-                warning(f'Cannot load {fn}, incorrect size ({layer.width}x{layer.height})!')
+            if layer.width != args.width or layer.height != args.height:
+                warning(
+                    f'Cannot load {fn}, incorrect size ({layer.width}x{layer.height})!')
                 continue
             layers.append(layer)
         except Exception as exc:
@@ -228,19 +277,13 @@ def main():
     if args.evdev:
         key_dev = None
         try:
-            if args.evdev == "scan" :
-                info('Scanning for evdev...')
-                for fn in evdev.list_devices() :
-                    key_dev = evdev.InputDevice(fn)
-                    if key_dev.name.startswith('PicoMK Pico Keyboard') :
-                        args.evdev = fn
-                        info('Using first PicoMK Pico Keyboard: {d}.')
-                        break
-            else :
+            if args.evdev == "scan":
+                key_dev = scan_for_keyboard()
+            else:
                 key_dev = evdev.InputDevice(args.evdev)
 
-            if key_dev :
-                key_task = loop.create_task(keyboard_task(key_dev, cmdq))
+            if key_dev:
+                key_task = loop.create_task(wrap_keyboard_task(key_dev, cmdq))
                 info(f'Using event dev {args.evdev} as control buttons...')
         except Exception as exc:
             exception('Could not start evdev handler, exception raised!')

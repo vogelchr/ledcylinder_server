@@ -1,10 +1,10 @@
 #!./venv/bin/python
 import asyncio
-from logging import critical, debug, error, info, warning
-
+from logging import critical, debug, error, info, warning, exception
 import pygame
 import pygame.locals
 import numpy as np
+
 
 class HW_PyGame:
     def __init__(self, loop: asyncio.AbstractEventLoop, width: int, height: int, scale: int, cmdq: asyncio.Queue[str]):
