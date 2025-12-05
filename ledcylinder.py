@@ -165,7 +165,10 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
 
         dt_remain -= dt_secs
         if dt_remain < 0:
-            if type(layer_ix) == tuple:
+            if len(layers) == 1:
+                # only one layer, nothing to do
+                pass
+            elif type(layer_ix) == tuple:
                 layer_ix = layer_ix[1]
                 dt_remain = args.page_time
             elif type(layer_ix) == int:
@@ -184,10 +187,10 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
                 #                layers[ix_b].x_increment = np.random.uniform(-1.1, -0.66)
                 layers[ix_b].x_increment = -1
                 layer_ix = (layer_ix, ix_b)
-                dt_remain = args.fade_time
             else:
                 raise RuntimeError(
                     'Fatal error, laxer ix neither tuple nor integer!')
+            dt_remain = args.fade_time
 
         await asyncio.sleep(dt_secs)
 
