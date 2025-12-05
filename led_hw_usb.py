@@ -1,15 +1,19 @@
 import numpy as np
 import usb.core
 
+from led_hw_any import LED_HW_Any
 
-class HW_USB:
+
+class HW_USB(LED_HW_Any):
+    dev: usb.core.Device
+
+    __slots__ = ['dev']
+
     def __init__(self):
+        super().__init__(128, 8)
         self.dev = usb.core.find(idVendor=0xcafe, idProduct=0x4010)
         self.dev.set_configuration()
         self.dev.ctrl_transfer(0x40, 0)  # set write pointer
-        self.width = 128
-        self.height = 8
-        self.running = True
 
     # update pixel matrix from PIL Image
     def update(self, img: np.ndarray):

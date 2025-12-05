@@ -5,15 +5,14 @@ from typing import Union, Tuple, List
 
 import numpy as np
 
-from led_hw_sim import HW_PyGame
-from led_hw_usb import HW_USB
 from led_page import LEDPage
+from led_hw_any import LED_HW_Any
 
 logger = logging.getLogger(__name__)
 
 
 class LEDSign:
-    hw: Union[HW_USB, HW_PyGame]
+    hw: LED_HW_Any
     pages: List[LEDPage]
 
     page_ix: Union[Tuple[int, int], int]
@@ -38,7 +37,7 @@ class LEDSign:
                  'flash_active', 'cmdq', 'all_white_img', 'all_black_img',
                  'fade_img', 'fade_tmp', ]
 
-    def __init__(self, hw: Union[HW_USB, HW_PyGame], page_time: float,
+    def __init__(self, hw: LED_HW_Any, page_time: float,
                  fade_time: float, fps: float, cmdq: asyncio.Queue,
                  randomize_pages: bool):
         self.hw = hw

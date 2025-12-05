@@ -6,13 +6,22 @@ import numpy as np
 import pygame
 import pygame.locals
 
+from led_hw_any import LED_HW_Any
 
-class HW_PyGame:
+
+class HW_PyGame(LED_HW_Any):
+    loop: asyncio.AbstractEventLoop
+    scale: int
+    cmdq: asyncio.Queue
+    window: pygame.Surface
+    evt_consumer: asyncio.Task
+
+    __slots__ = ['loop', 'scale', 'cmdq', 'window', 'evt_consumer']
+
     def __init__(self, loop: asyncio.AbstractEventLoop, width: int, height: int,
                  scale: int, cmdq: asyncio.Queue[str]):
+        super().__init__(width, height)
         self.loop = loop
-        self.width, self.height = width, height
-        self.running = True
         self.scale = scale
         self.cmdq = cmdq
 
