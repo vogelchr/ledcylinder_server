@@ -14,6 +14,8 @@ class LEDPage(ABC):
     x_offset: float
     x_increment: float
 
+    __slots__ = ['width', 'height', 'x_offset', 'x_increment']
+
     def __init__(self, width: int, height: int, increment: float = -1.0):
         self.x_offset = 0
         self.x_increment = increment
@@ -55,6 +57,8 @@ class LEDPage(ABC):
 class LEDStaticImage(LEDPage):
     img: np.ndarray
 
+    __slots__ = ['img']
+
     def __init__(self, img: np.ndarray):
         super().__init__(img.shape[1], img.shape[0])  # width/height
         self.img = img
@@ -85,6 +89,8 @@ class LEDAnimation(LEDPage):
     time_arr: List[float]
     img_ix: int
     frame_dt: float
+
+    __slots__ = ['img_arr', 'time_arr', 'img_ix', 'frame_dt']
 
     def __init__(self, width: int, height: int, img_arr: np.ndarray,
                  time_arr: List[float]):
