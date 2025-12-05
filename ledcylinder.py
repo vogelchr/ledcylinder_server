@@ -3,17 +3,15 @@
 import argparse
 import asyncio
 import logging
-import random
+import sys
 from logging import info, exception, warning, debug, error
 from pathlib import Path
-from typing import List
-import sys
 
 import evdev
 import evdev.ecodes
-import numpy as np
 
 from led_page import LEDPage
+from led_sign import LEDSign
 
 
 def scan_for_keyboard():
@@ -89,107 +87,12 @@ async def keyboard_task(keydev: evdev.InputDevice, cmdq: asyncio.Queue[str]):
         cmdq.put_nowait(keyname)
 
 
-async def wrap_keyboard_task(keydev: evdev.InputDevice, cmdq: asyncio.Queue[str]):
+async def wrap_keyboard_task(keydev: evdev.InputDevice,
+                             cmdq: asyncio.Queue[str]):
     try:
         await keyboard_task(keydev, cmdq)
     except Exception as exc:
         exception('Exception caught in keyboard task!')
-
-
-async def mainloop(args: argparse.Namespace, pages: List[LEDPage], hw, cmdq: asyncio.Queue[str]):
-    page_ix = 0
-    dt_remain = args.page_time
-    dt_secs = 1.0 / args.fps
-
-    output_active = True
-    flash_active = False
-
-    all_white_img = np.full((hw.height, hw.width, 3), 0xff, dtype=np.uint8)
-    all_black_img = np.full((hw.height, hw.width, 3), 0x00, dtype=np.uint8)
-
-    # avoid too many object creations/deletions
-    fade_img = np.zeros((hw.height, hw.width, 3), dtype='f')
-    fade_tmp = np.zeros((hw.height, hw.width, 3), dtype='f')
-
-    while hw.running:
-        if not cmdq.empty():
-            cmd = cmdq.get_nowait()
-
-            if cmd == 'i_pressed':
-                info('Blitzdings on!')
-                flash_active = True
-            elif cmd == 'i_released':
-                info('Blitzdings off!')
-                flash_active = False
-            elif cmd == 'o_pressed':
-                output_active = not output_active
-                if output_active:
-                    info('Normal output.')
-                else:
-                    info('Blackout!')
-
-        if type(page_ix) == tuple:
-            ix_a, ix_b = page_ix
-            pages[ix_a].tick(dt_secs)
-            pages[ix_b].tick(dt_secs)
-
-            fade = dt_remain / args.fade_time
-
-            # try to avoid creation of too many tmp arrays
-            fade_img[...] = pages[ix_a].get()
-            fade_img *= np.power(fade, 3)
-
-            fade_tmp[...] = pages[ix_b].get()
-            fade_tmp *= np.power(1 - fade, 3)
-            fade_img += fade_tmp
-
-            fade_img = np.clip(fade_img, 0, 255)
-
-            img = fade_img.astype(np.uint8)
-
-        elif type(page_ix) == int:
-            pages[page_ix].tick(dt_secs)
-            img = pages[page_ix].get()
-        else:
-            raise RuntimeError(
-                'Fatal error, laxer ix neither tuple nor integer!')
-
-        if flash_active:
-            hw.update(all_white_img)
-        else:
-            if output_active:
-                hw.update(img)
-            else:
-                hw.update(all_black_img)
-
-        dt_remain -= dt_secs
-        if dt_remain < 0:
-            if len(pages) == 1:
-                # only one page, nothing to do
-                pass
-            elif type(page_ix) == tuple:
-                page_ix = page_ix[1]
-                dt_remain = args.page_time
-            elif type(page_ix) == int:
-                if args.randomize_pages:
-                    # random page, but not the currently displayed
-                    # one
-                    ix_b = random.randint(0, len(pages) - 2)
-                    if ix_b >= page_ix:
-                        ix_b += 1
-                else:
-                    ix_b = page_ix + 1
-                    if ix_b >= len(pages):
-                        ix_b = 0
-
-                pages[ix_b].x_increment = -1
-                page_ix = (page_ix, ix_b)
-            else:
-                raise RuntimeError(
-                    'Fatal error, laxer ix neither tuple nor integer!')
-            dt_remain = args.fade_time
-
-        await asyncio.sleep(dt_secs)
 
 
 def main():
@@ -216,14 +119,16 @@ def main():
 
     grp.add_argument('-F', '--fps', type=float, metavar='Hz', default=60,
                      help='Frames per Second (approx) [def:%(default).1f]')
-    grp.add_argument('-p', '--page-time', type=float, metavar='sec', default=5.0,
+    grp.add_argument('-p', '--page-time', type=float, metavar='sec',
+                     default=5.0,
                      help='Switch pages after sec seconds [def:%(default).1f]')
-    grp.add_argument('-f', '--fade-time', type=float, metavar='sec', default=1.0,
+    grp.add_argument('-f', '--fade-time', type=float, metavar='sec',
+                     default=1.0,
                      help='Switch pages after sec seconds [def:%(default).1f]')
     grp.add_argument('-l', '--limit-brightness', type=int, default=255,
                      help='Limit brightness of individual pages [def:%(default)d]')
-    grp.add_argument('-r', '--randomize-pages',
-                     action='store_true', help='Randomize order of pages.')
+    grp.add_argument('-r', '--randomize-pages', action='store_true',
+                     help='Randomize order of pages.')
 
     grp = parser.add_argument_group('External Control')
 
@@ -247,26 +152,8 @@ def main():
         error('Error: Brightness limit cannot be <1 or >255!')
         sys.exit(1)
 
-    if len(args.pages) == 1 and args.pages[0].is_dir():
-        args.pages = sorted(args.pages[0].glob('*'))
-
-    info('Loading pages.')
-    pages = list()
-    for fn in args.pages:
-        try:
-            page = LEDPage.from_file(fn, args.limit_brightness)
-            if page is None:
-                continue
-            if page.width != args.width or page.height != args.height:
-                warning(
-                    f'Cannot load {fn}, incorrect size ({page.width}x{page.height})!')
-                continue
-            pages.append(page)
-        except Exception as exc:
-            exception(f'Cannot load page {fn}, exception caught!')
-
-    cmdq = asyncio.Queue()
     loop = asyncio.new_event_loop()
+    cmdq = asyncio.Queue()
 
     if args.simulation:
         info('Starting pygame simulator hardware...')
@@ -276,6 +163,26 @@ def main():
         info('Running with real USB hardware...')
         from led_hw_usb import HW_USB
         hw = HW_USB()
+
+    sign = LEDSign(hw, args.page_time, args.fade_time, args.fps, cmdq,
+                   args.randomize_pages)
+
+    if len(args.pages) == 1 and args.pages[0].is_dir():
+        args.pages = sorted(args.pages[0].glob('*'))
+
+    info('Loading pages.')
+    for fn in args.pages:
+        try:
+            page = LEDPage.from_file(fn, args.limit_brightness)
+            if page is None:
+                continue
+            if page.width != args.width or page.height != args.height:
+                warning(
+                    f'Cannot load {fn}, incorrect size ({page.width}x{page.height})!')
+                continue
+            sign.add_page(page)
+        except Exception as exc:
+            exception(f'Cannot load page {fn}, exception caught!')
 
     key_task = None
     if args.evdev:
@@ -293,7 +200,7 @@ def main():
             exception('Could not start evdev handler, exception raised!')
     try:
         info('Starting mainloop..')
-        loop.run_until_complete(mainloop(args, pages, hw, cmdq))
+        loop.run_until_complete(sign.mainloop())
     except KeyboardInterrupt:
         if args.simulation:
             hw.stop()
