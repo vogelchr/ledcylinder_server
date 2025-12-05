@@ -116,7 +116,12 @@ class LED_Anim(LED_Layer):
 
                 img_fn = fn.parent / fn.stem / img_fn_base
 
-                ndarr = np.array(PIL.Image.open(img_fn))
+                img = PIL.Image.open(img_fn)
+                if img.mode != 'RGB':
+                    warning(f'Image {fn} is not mode RGB, but {img.mode}.')
+                    img = img.convert('RGB')
+
+                ndarr = np.array(img)
                 if shape is None:
                     shape = ndarr.shape
                 assert np.array_equal(shape, ndarr.shape)
