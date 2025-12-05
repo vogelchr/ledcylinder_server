@@ -7,7 +7,7 @@ import PIL.Image
 import numpy as np
 
 
-class LED_Layer(ABC):
+class LEDPage(ABC):
     width: int
     height: int
 
@@ -23,9 +23,9 @@ class LED_Layer(ABC):
     @staticmethod
     def from_file(fn: Path, limit_brightness):
         if '.png' in fn.suffixes or '.jpg' in fn.suffixes:
-            return LED_Image.from_file_image(fn, limit_brightness)
+            return LEDStaticImage.from_file_image(fn, limit_brightness)
         if '.ani' in fn.suffixes:
-            return LED_Anim.from_file_anim(fn, limit_brightness)
+            return LEDAnimation.from_file_anim(fn, limit_brightness)
         if '.aseprite' in fn.suffixes:
             # ignore
             return None
@@ -52,10 +52,10 @@ class LED_Layer(ABC):
         return np.roll(src, x_offs_int, axis=1)
 
 
-class LED_Image(LED_Layer):
-    img: PIL.Image
+class LEDStaticImage(LEDPage):
+    img: np.ndarray
 
-    def __init__(self, img: PIL.Image):
+    def __init__(self, img: np.ndarray):
         super().__init__(img.shape[1], img.shape[0])  # width/height
         self.img = img
 
@@ -80,7 +80,7 @@ class LED_Image(LED_Layer):
         pass
 
 
-class LED_Anim(LED_Layer):
+class LEDAnimation(LEDPage):
     img_arr: np.ndarray  # [n-frames,height,width,3(rgb)]
     time_arr: List[float]
     img_ix: int

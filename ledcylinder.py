@@ -13,7 +13,7 @@ import evdev
 import evdev.ecodes
 import numpy as np
 
-from led_layer import LED_Layer
+from led_page import LEDPage
 
 
 def scan_for_keyboard():
@@ -96,8 +96,8 @@ async def wrap_keyboard_task(keydev: evdev.InputDevice, cmdq: asyncio.Queue[str]
         exception('Exception caught in keyboard task!')
 
 
-async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: asyncio.Queue[str]):
-    layer_ix = 0
+async def mainloop(args: argparse.Namespace, pages: List[LEDPage], hw, cmdq: asyncio.Queue[str]):
+    page_ix = 0
     dt_remain = args.page_time
     dt_secs = 1.0 / args.fps
 
@@ -128,18 +128,18 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
                 else:
                     info('Blackout!')
 
-        if type(layer_ix) == tuple:
-            ix_a, ix_b = layer_ix
-            layers[ix_a].tick(dt_secs)
-            layers[ix_b].tick(dt_secs)
+        if type(page_ix) == tuple:
+            ix_a, ix_b = page_ix
+            pages[ix_a].tick(dt_secs)
+            pages[ix_b].tick(dt_secs)
 
             fade = dt_remain / args.fade_time
 
             # try to avoid creation of too many tmp arrays
-            fade_img[...] = layers[ix_a].get()
+            fade_img[...] = pages[ix_a].get()
             fade_img *= np.power(fade, 3)
 
-            fade_tmp[...] = layers[ix_b].get()
+            fade_tmp[...] = pages[ix_b].get()
             fade_tmp *= np.power(1 - fade, 3)
             fade_img += fade_tmp
 
@@ -147,9 +147,9 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
 
             img = fade_img.astype(np.uint8)
 
-        elif type(layer_ix) == int:
-            layers[layer_ix].tick(dt_secs)
-            img = layers[layer_ix].get()
+        elif type(page_ix) == int:
+            pages[page_ix].tick(dt_secs)
+            img = pages[page_ix].get()
         else:
             raise RuntimeError(
                 'Fatal error, laxer ix neither tuple nor integer!')
@@ -164,28 +164,26 @@ async def mainloop(args: argparse.Namespace, layers: List[LED_Layer], hw, cmdq: 
 
         dt_remain -= dt_secs
         if dt_remain < 0:
-            if len(layers) == 1:
-                # only one layer, nothing to do
+            if len(pages) == 1:
+                # only one page, nothing to do
                 pass
-            elif type(layer_ix) == tuple:
-                layer_ix = layer_ix[1]
+            elif type(page_ix) == tuple:
+                page_ix = page_ix[1]
                 dt_remain = args.page_time
-            elif type(layer_ix) == int:
+            elif type(page_ix) == int:
                 if args.randomize_pages:
                     # random page, but not the currently displayed
                     # one
-                    ix_b = random.randint(0, len(layers) - 2)
-                    if ix_b >= layer_ix:
+                    ix_b = random.randint(0, len(pages) - 2)
+                    if ix_b >= page_ix:
                         ix_b += 1
                 else:
-                    ix_b = layer_ix + 1
-                    if ix_b >= len(layers):
+                    ix_b = page_ix + 1
+                    if ix_b >= len(pages):
                         ix_b = 0
 
-                # this looks shitty
-                #                layers[ix_b].x_increment = np.random.uniform(-1.1, -0.66)
-                layers[ix_b].x_increment = -1
-                layer_ix = (layer_ix, ix_b)
+                pages[ix_b].x_increment = -1
+                page_ix = (page_ix, ix_b)
             else:
                 raise RuntimeError(
                     'Fatal error, laxer ix neither tuple nor integer!')
@@ -232,7 +230,7 @@ def main():
     grp.add_argument('-e', '--evdev', type=str,
                      help='Support button for flash, use /dev/input/eventXX or "scan"')
 
-    parser.add_argument('layers', type=Path, nargs='+')
+    parser.add_argument('pages', type=Path, nargs='+')
 
     args = parser.parse_args()
 
@@ -249,21 +247,21 @@ def main():
         error('Error: Brightness limit cannot be <1 or >255!')
         sys.exit(1)
 
-    if len(args.layers) == 1 and args.layers[0].is_dir():
-        args.layers = sorted(args.layers[0].glob('*'))
+    if len(args.pages) == 1 and args.pages[0].is_dir():
+        args.pages = sorted(args.pages[0].glob('*'))
 
-    info('Loading layers.')
-    layers = list()
-    for fn in args.layers:
+    info('Loading pages.')
+    pages = list()
+    for fn in args.pages:
         try:
-            layer = LED_Layer.from_file(fn, args.limit_brightness)
-            if layer is None:
+            page = LEDPage.from_file(fn, args.limit_brightness)
+            if page is None:
                 continue
-            if layer.width != args.width or layer.height != args.height:
+            if page.width != args.width or page.height != args.height:
                 warning(
-                    f'Cannot load {fn}, incorrect size ({layer.width}x{layer.height})!')
+                    f'Cannot load {fn}, incorrect size ({page.width}x{page.height})!')
                 continue
-            layers.append(layer)
+            pages.append(page)
         except Exception as exc:
             exception(f'Cannot load page {fn}, exception caught!')
 
@@ -295,7 +293,7 @@ def main():
             exception('Could not start evdev handler, exception raised!')
     try:
         info('Starting mainloop..')
-        loop.run_until_complete(mainloop(args, layers, hw, cmdq))
+        loop.run_until_complete(mainloop(args, pages, hw, cmdq))
     except KeyboardInterrupt:
         if args.simulation:
             hw.stop()
