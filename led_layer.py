@@ -26,7 +26,7 @@ class LED_Layer(ABC):
             return LED_Image.from_file_image(fn, limit_brightness)
         if '.ani' in fn.suffixes:
             return LED_Anim.from_file_anim(fn, limit_brightness)
-        if '.aseprite' in fn.suffixes :
+        if '.aseprite' in fn.suffixes:
             # ignore
             return None
         warning(f'Unknown extension for {fn}, ignoring!')
@@ -44,9 +44,9 @@ class LED_Layer(ABC):
         x_offs_int = int(round(self.x_offset))
 
         self.x_offset += self.x_increment
-        while self.x_offset < 0 :
+        while self.x_offset < 0:
             self.x_offset += self.width
-        while self.x_offset > self.width :
+        while self.x_offset > self.width:
             self.x_offset -= self.width
 
         return np.roll(src, x_offs_int, axis=1)
@@ -86,7 +86,8 @@ class LED_Anim(LED_Layer):
     img_ix: int
     frame_dt: float
 
-    def __init__(self, width: int, height: int, img_arr: np.ndarray, time_arr: List[float]):
+    def __init__(self, width: int, height: int, img_arr: np.ndarray,
+                 time_arr: List[float]):
         super().__init__(width, height)
         self.img_arr = img_arr
         self.time_arr = time_arr
@@ -138,10 +139,11 @@ class LED_Anim(LED_Layer):
         vmax = np.amax(frames)
         if vmax > limit_brightness:
             error(f'{fn}: too bright {vmax}, limiting to {limit_brightness}...')
-            frames = np.round(
-                frames * (limit_brightness / vmax)).astype(np.uint8)
+            frames = np.round(frames * (limit_brightness / vmax)).astype(
+                np.uint8)
 
-        info(f'Animation with {frames.shape[0]} frames of size {frames.shape[2]} x {frames.shape[1]}.')
+        info(
+            f'Animation with {frames.shape[0]} frames of size {frames.shape[2]} x {frames.shape[1]}.')
         return cls(shape[1], shape[0], frames, time_arr)
 
     def tick(self, dt: float):

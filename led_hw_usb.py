@@ -1,5 +1,5 @@
-import usb.core
 import numpy as np
+import usb.core
 
 
 class HW_USB:
@@ -12,8 +12,8 @@ class HW_USB:
         self.running = True
 
     # update pixel matrix from PIL Image
-    def update(self, img:np.ndarray):
+    def update(self, img: np.ndarray):
         self.dev.write(1, img.tobytes())
 
-    def stop(self) :
+    def stop(self):
         return None

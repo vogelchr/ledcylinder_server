@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import List
 import sys
 
-import PIL.Image
 import evdev
 import evdev.ecodes
 import numpy as np
