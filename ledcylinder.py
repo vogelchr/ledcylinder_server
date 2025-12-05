@@ -227,8 +227,10 @@ def main():
     grp.add_argument('-r', '--randomize-pages',
                      action='store_true', help='Randomize order of pages.')
 
+    grp = parser.add_argument_group('External Control')
+
     grp.add_argument('-e', '--evdev', type=str,
-                     help='Support button for flash, use /dev/input/eventXX')
+                     help='Support button for flash, use /dev/input/eventXX or "scan"')
 
     parser.add_argument('layers', type=Path, nargs='+')
 
