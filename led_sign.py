@@ -74,10 +74,10 @@ class LEDSign:
 
                 if cmd == 'i_pressed':
                     logger.info('Blitzdings on!')
-                    flash_active = True
+                    self.flash_active = True
                 elif cmd == 'i_released':
                     logger.info('Blitzdings off!')
-                    flash_active = False
+                    self.flash_active = False
                 elif cmd == 'o_pressed':
                     self.output_active = not self.output_active
                     if self.output_active:
