@@ -3,3 +3,4 @@ pillow
 pygame
 pyusb
 evdev
+aiohttp

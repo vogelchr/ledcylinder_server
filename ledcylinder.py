@@ -12,6 +12,7 @@ import evdev.ecodes
 
 from led_page import LEDPage
 from led_sign import LEDSign
+from web_api import LEDCylinderWebApi
 
 
 def scan_for_keyboard():
@@ -134,6 +135,8 @@ def main():
 
     grp.add_argument('-e', '--evdev', type=str,
                      help='Support button for flash, use /dev/input/eventXX or "scan"')
+    grp.add_argument('-P', '--http-port', type=int,
+                     help='enable http-web api on given port')
 
     parser.add_argument('pages', type=Path, nargs='+')
 
@@ -183,6 +186,9 @@ def main():
             sign.add_page(page)
         except Exception as exc:
             exception(f'Cannot load page {fn}, exception caught!')
+
+    if args.http_port:
+        webapi = LEDCylinderWebApi(loop, sign, args.http_port)
 
     key_task = None
     if args.evdev:
