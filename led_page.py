@@ -3,7 +3,7 @@ from logging import info, warning, error
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-import PIL.Image
+import PIL.Image, PIL.ImageFont, PIL.ImageDraw
 import numpy as np
 
 
@@ -28,6 +28,9 @@ class LEDPage(ABC):
             return LEDStaticImage.from_file_image(fn, limit_brightness)
         if '.ani' in fn.suffixes:
             return LEDAnimation.from_file_anim(fn, limit_brightness)
+        if '.txt' in fn.suffixes :
+            line = fn.read_text().split('\n')[0]
+            return LEDTextPage(128, 8, line, (255, 255, 255))
         if '.aseprite' in fn.suffixes:
             # ignore
             return None
@@ -162,3 +165,20 @@ class LEDAnimation(LEDPage):
 
     def get(self):
         return self.rotate(self.img_arr[self.img_ix])
+
+
+font_5x8: Optional[PIL.ImageFont] = None
+
+
+class LEDTextPage(LEDStaticImage):
+    def __init__(self, width: int, height: int, text: str, color_rgb: Tuple[int, int, int]):
+
+        global font_5x8
+        if font_5x8 is None:
+            font_5x8 = PIL.ImageFont.load('font_5x8.pil')
+
+        pil_img = PIL.Image.new('RGB', (width, height), (0, 0, 0))
+        draw = PIL.ImageDraw.Draw(pil_img)
+        draw.text((0, 0), text, fill=color_rgb, font=font_5x8)
+
+        super().__init__(np.array(pil_img))
