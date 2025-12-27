@@ -167,7 +167,7 @@ class LEDAnimation(LEDPage):
         return self.rotate(self.img_arr[self.img_ix])
 
 
-font_5x8: Optional[PIL.ImageFont] = None
+font_5x8: Optional[PIL.ImageFont.ImageFont] = None
 
 
 class LEDTextPage(LEDStaticImage):
